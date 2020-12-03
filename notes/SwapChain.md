@@ -82,7 +82,7 @@ and checkDeviceExtensionSupport function;
 createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
 createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 ```
-**6.** We checket for the availability of swap chain but it may be incompatible with window surface. We need to check;
+**6.** We checked the availability of swap chain but it may be incompatible with window surface. We need to check;
 1. Basic surface capabilities(min/max number of images in swap chain, min/max width and height of images)
 2. Surface formats(pixel format, color space)
 3. Available presentation modes
