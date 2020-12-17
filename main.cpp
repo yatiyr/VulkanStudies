@@ -629,6 +629,10 @@ private:
         }
     }
 
+    void createGraphicsPipeline() {
+        
+    }
+
     void initVulkan() {
         createInstance();
         setupDebugMessenger();
@@ -637,6 +641,7 @@ private:
         createLogicalDevice();
         createSwapChain();
         createImageViews();
+        createGraphicsPipeline();
     }
 
 
