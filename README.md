@@ -4,7 +4,9 @@ I'm following Vulkan Tutorial on https://vulkan-tutorial.com/ , this repo is for
 I'm most of the time copying and pasting after trying to understand what I see from the tutorial.
 At the end of each chapter, I write some notes about what I've learned(most of the time copying & pasting from tutorial :D)
 
-PROGRESS UPDATE 22.12.2020
+**START DATE 30.11.20200**
+
+**PROGRESS UPDATE 22.12.2020**
 
 ![tenor](https://user-images.githubusercontent.com/57312811/102829134-7f7fd800-43f7-11eb-8e50-e8e0668e1011.gif)
 
