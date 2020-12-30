@@ -135,6 +135,7 @@ private:
     std::vector<VkFence> _inFlightFences;
     std::vector<VkFence> _imagesInFlight;
     size_t currentFrame = 0;
+    bool framebufferResized = false;
 
 
 
@@ -159,11 +160,15 @@ private:
     void initWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
         _window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+        glfwSetWindowUserPointer(_window, this);
+        glfwSetFramebufferSizeCallback(_window, framebufferResizeCallback);
+    }
 
-
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+        auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+        app->framebufferResized = true;
     }
 
     bool checkValidationLayerSupport() {
@@ -338,9 +343,7 @@ private:
         createInfo = {};
         createInfo.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 
-        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | 
-                                     VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | 
-                                     VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 
         createInfo.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | 
                                      VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | 
@@ -979,6 +982,28 @@ private:
 
     }
 
+    void recreateSwapChain() {
+
+
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(_window, &width, &height);
+        while(width == 0 || height == 0) {
+            glfwGetFramebufferSize(_window,&width,&height);
+            glfwWaitEvents();
+        }
+
+
+        vkDeviceWaitIdle(_device);
+        cleanupSwapChain();
+
+        createSwapChain();
+        createImageViews();
+        createRenderPass();
+        createGraphicsPipeline();
+        createFramebuffers();
+        createCommandBuffers();
+    }
+
     void initVulkan() {
         createInstance();
         setupDebugMessenger();
@@ -1039,9 +1064,18 @@ private:
         presentInfo.pImageIndices   = &imageIndex;
         presentInfo.pResults        = nullptr;
 
-        vkQueuePresentKHR(_presentQueue, &presentInfo);
-        
-        currentFrame = (currentFrame + 1) & MAX_FRAMES_IN_FLIGHT;
+        VkResult result = vkQueuePresentKHR(_presentQueue, &presentInfo);
+
+        if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+            framebufferResized = false;
+            recreateSwapChain();
+            return;
+        }
+        else if(result != VK_SUCCESS) {
+            throw std::runtime_error("failed to acquire swap chain image!");
+        }
+
+        currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
     void mainLoop() {
@@ -1054,7 +1088,26 @@ private:
         vkDeviceWaitIdle(_device);
     }
 
+    void cleanupSwapChain() {
+        for(size_t i=0; i<_swapChainFramebuffers.size(); i++) {
+            vkDestroyFramebuffer(_device,_swapChainFramebuffers[i],nullptr);
+        }
+
+        vkFreeCommandBuffers(_device,_commandPool,static_cast<uint32_t>(_commandBuffers.size()),_commandBuffers.data());
+        vkDestroyPipeline(_device,_graphicsPipeline,nullptr);
+        vkDestroyPipelineLayout(_device,_pipelineLayout,nullptr);
+        vkDestroyRenderPass(_device,_renderPass,nullptr);
+
+        for(size_t i = 0; i<_swapChainImageViews.size(); i++) {
+            vkDestroyImageView(_device,_swapChainImageViews[i],nullptr);
+        }
+
+        vkDestroySwapchainKHR(_device,_swapChain,nullptr);
+    }
+
     void cleanup() {
+
+        cleanupSwapChain();
 
         for(size_t i=0; i<MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(_device, _renderFinishedSemaphores[i], nullptr);
@@ -1063,27 +1116,15 @@ private:
         }
 
         vkDestroyCommandPool(_device, _commandPool, nullptr);
-
-        for(auto framebuffer : _swapChainFramebuffers) {
-            vkDestroyFramebuffer(_device, framebuffer, nullptr);
-        }
-
-        vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
-        vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
-        vkDestroyRenderPass(_device, _renderPass, nullptr);
-
-        for (auto imageView : _swapChainImageViews) {
-            vkDestroyImageView(_device, imageView, nullptr);
-        }
+        vkDestroyDevice(_device, nullptr);
         
-        vkDestroySwapchainKHR(_device, _swapChain, nullptr);
         if(enableValidationLayers) {
             DestroyDebugUtilsMessengerEXT(_instance, _debugMessenger, nullptr);
         }
 
-        vkDestroyDevice(_device, nullptr);
         vkDestroySurfaceKHR(_instance, _surface, nullptr);
         vkDestroyInstance(_instance, nullptr);
+
         glfwDestroyWindow(_window);
         glfwTerminate();
     }
